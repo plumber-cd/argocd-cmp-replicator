@@ -2,16 +2,20 @@ package secrets
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/plumber-cd/argocd-cmp-replicator/k8s"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 func init() {
 	Cmd.PersistentFlags().String("namespace", "", "Namespace to search for secrets - this is ignored if ARGOCD_APP_NAMESPACE is set")
+	Cmd.PersistentFlags().StringP("alternative-label-selector", "l", "", "This is a list of key=value pairs. If set, will override default label selector")
 }
 
 type K8sClient struct {
@@ -37,6 +41,30 @@ var Cmd = &cobra.Command{
 			return errors.New("Namespace not set")
 		}
 
+		alternativeLabelSelector := ""
+		if v, ok := os.LookupEnv("ARGOCD_APP_PARAMETERS"); ok {
+			if viper.GetString("alternative-label-selector") != "" {
+				slog.Error("Both ARGOCD_APP_PARAMETERS and --alternative-label-selector were set")
+				return fmt.Errorf("Both ARGOCD_APP_PARAMETERS and --alternative-label-selector were set")
+			}
+			params := argocdv1alpha1.ApplicationSourcePluginParameters{}
+			if err := yaml.Unmarshal([]byte(v), &params); err != nil {
+				return err
+			}
+			for _, param := range params {
+				if param.Name == "alternative-label-selector" {
+					alternativeLabelSelector = *param.String_
+					break
+				}
+			}
+		} else {
+			_alternativeLabelSelector, err := cmd.Flags().GetString("alternative-label-selector")
+			if err != nil {
+				return err
+			}
+			alternativeLabelSelector = _alternativeLabelSelector
+		}
+
 		_client, err := k8s.New()
 		if err != nil {
 			slog.Error("Failed to create k8s client", "err", err)
@@ -47,7 +75,7 @@ var Cmd = &cobra.Command{
 			_client,
 		}
 
-		secrets, err := client.GetLabeledSecrets(ctx, "")
+		secrets, err := client.GetLabeledSecrets(ctx, namespace, alternativeLabelSelector)
 		if err != nil {
 			slog.Error("Failed to get secrets", "err", err)
 			return err

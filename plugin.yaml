@@ -7,3 +7,11 @@ spec:
     command: [/usr/local/bin/argocd-cmp-replicator]
     args:
       - secrets
+  parameters:
+    static:
+      - name: alternative-label-selector
+        title: Alternative Label Selector
+        tooltip: |
+          The label selector to use to find the resources to replicate.
+          It should still be labeled with `plumber-cd.github.io/argocd-cmp-replicator-use-alternative-selector=true`.
+        required: false

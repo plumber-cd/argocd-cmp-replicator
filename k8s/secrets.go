@@ -14,9 +14,13 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 )
 
-func (c *Client) GetLabeledSecrets(ctx context.Context, namespace string) (*corev1.SecretList, error) {
+func (c *Client) GetLabeledSecrets(ctx context.Context, namespace, alternativeLabelSelector string) (*corev1.SecretList, error) {
+	labelSelector := fmt.Sprintf("%s=%s", types.ReplicatorLabel, "true")
+	if alternativeLabelSelector != "" {
+		labelSelector = fmt.Sprintf("%s=%s,%s", types.ReplicatorLabelAlternative, "true", alternativeLabelSelector)
+	}
 	secrets, err := c.CoreV1().Secrets("").List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", types.ReplicatorLabel, "true"),
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		return nil, err

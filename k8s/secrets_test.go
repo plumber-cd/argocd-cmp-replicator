@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"log/slog"
+	"fmt"
 	"testing"
 
 	"github.com/plumber-cd/argocd-cmp-replicator/types"
@@ -160,136 +160,324 @@ func TestMatchSecretByList(t *testing.T) {
 }
 
 func TestGetLabeledSecrets(t *testing.T) {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
-	_client := testClient.NewSimpleClientset(
+	t.Run("default-label-selector", func(t *testing.T) {
+		_client := testClient.NewSimpleClientset(
 
-		// Matching secrets
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret",
-				Namespace: "my-test-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
+			// Matching secrets
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
 				},
 			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-for-current-namespace",
-				Namespace: "my-test-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "-",
-				},
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-for-current-namespace-explicitly",
-				Namespace: "my-test-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "my-test-namespace",
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-current-namespace",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "-",
+					},
 				},
 			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-in-another-namespace-for-any-namespace",
-				Namespace: "some-other-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "*",
-				},
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-in-another-namespace-for-this-namespace",
-				Namespace: "some-other-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "my-test-namespace",
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-current-namespace-explicitly",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "my-test-namespace",
+					},
 				},
 			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-in-another-namespace-for-many-namespaces",
-				Namespace: "some-other-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "foo,my-test-namespace,bar",
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-in-another-namespace-for-any-namespace",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "*",
+					},
 				},
 			},
-		},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-in-another-namespace-for-this-namespace",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "my-test-namespace",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-in-another-namespace-for-many-namespaces",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "foo,my-test-namespace,bar",
+					},
+				},
+			},
 
-		// Other noise secrets
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "some-secret",
-				Namespace: "my-test-namespace",
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "some-secret",
-				Namespace: "some-other-namespace",
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-with-false-secret",
-				Namespace: "my-test-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "false",
+			// Other noise secrets
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-secret",
+					Namespace: "my-test-namespace",
 				},
 			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-for-another-namespace",
-				Namespace: "my-test-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "some-other-namespace",
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-secret",
+					Namespace: "some-other-namespace",
 				},
 			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "labeled-secret-for-many-namespaces-but-not-this-one",
-				Namespace: "some-other-namespace",
-				Labels: map[string]string{
-					types.ReplicatorLabel: "true",
-				},
-				Annotations: map[string]string{
-					types.ReplicatorAnnotationAllowedNamespaces: "foo,bar,baz",
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-with-false-secret",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "false",
+					},
 				},
 			},
-		},
-	)
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-another-namespace",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "some-other-namespace",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-many-namespaces-but-not-this-one",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "foo,bar,baz",
+					},
+				},
+			},
+		)
 
-	client := Client{
-		_client,
-	}
+		client := Client{
+			_client,
+		}
 
-	secrets, err := client.GetLabeledSecrets(context.TODO(), "my-test-namespace")
-	require.NoError(t, err)
+		secrets, err := client.GetLabeledSecrets(context.TODO(), "my-test-namespace", "")
+		require.NoError(t, err)
 
-	require.Len(t, secrets.Items, 6)
+		require.Len(t, secrets.Items, 6)
+		secretKeys := make([]string, 0, len(secrets.Items))
+		for _, secret := range secrets.Items {
+			secretKeys = append(secretKeys, fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
+		}
+		require.ElementsMatch(t, []string{
+			"my-test-namespace/labeled-secret",
+			"my-test-namespace/labeled-secret-for-current-namespace",
+			"my-test-namespace/labeled-secret-for-current-namespace-explicitly",
+			"some-other-namespace/labeled-secret-in-another-namespace-for-any-namespace",
+			"some-other-namespace/labeled-secret-in-another-namespace-for-this-namespace",
+			"some-other-namespace/labeled-secret-in-another-namespace-for-many-namespaces",
+		}, secretKeys)
+	})
+
+	t.Run("alternative-label-selector", func(t *testing.T) {
+		_client := testClient.NewSimpleClientset(
+
+			// Matching secrets
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-current-namespace",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "-",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-current-namespace-explicitly",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "my-test-namespace",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-in-another-namespace-for-any-namespace",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "*",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-in-another-namespace-for-this-namespace",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "my-test-namespace",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-in-another-namespace-for-many-namespaces",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "foo,my-test-namespace,bar",
+					},
+				},
+			},
+
+			// Other noise secrets
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-secret",
+					Namespace: "my-test-namespace",
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-with-default-selector",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "foo,my-test-namespace,bar",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-but-not-in-selector",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"foo":                            "bar",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "foo,my-test-namespace,bar",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-secret",
+					Namespace: "some-other-namespace",
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-with-false-secret",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "false",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-another-namespace",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "some-other-namespace",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-secret-for-many-namespaces-but-not-this-one",
+					Namespace: "some-other-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+					Annotations: map[string]string{
+						types.ReplicatorAnnotationAllowedNamespaces: "foo,bar,baz",
+					},
+				},
+			},
+		)
+
+		client := Client{
+			_client,
+		}
+
+		secrets, err := client.GetLabeledSecrets(context.TODO(), "my-test-namespace", "alternative-label=alternative-label-value")
+		require.NoError(t, err)
+
+		require.Len(t, secrets.Items, 6)
+		secretKeys := make([]string, 0, len(secrets.Items))
+		for _, secret := range secrets.Items {
+			secretKeys = append(secretKeys, fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
+		}
+		require.ElementsMatch(t, []string{
+			"my-test-namespace/labeled-secret",
+			"my-test-namespace/labeled-secret-for-current-namespace",
+			"my-test-namespace/labeled-secret-for-current-namespace-explicitly",
+			"some-other-namespace/labeled-secret-in-another-namespace-for-any-namespace",
+			"some-other-namespace/labeled-secret-in-another-namespace-for-this-namespace",
+			"some-other-namespace/labeled-secret-in-another-namespace-for-many-namespaces",
+		}, secretKeys)
+	})
 }
 
 func TestWriteSecretListManifests(t *testing.T) {

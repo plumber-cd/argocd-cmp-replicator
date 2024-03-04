@@ -153,3 +153,41 @@ metadata:
   annotations:
     plumber-cd.github.io/argocd-cmp-replicator-allowed-namespaces: "*"
 ```
+
+### Non-standard label selector
+
+By default, the plugin will look for secrets with the label `plumber-cd.github.io/argocd-cmp-replicator=true`. If you want to use a different label, which may be useful in a multi-tenant clusters, you can label secrets with alternative label `plumber-cd.github.io/argocd-cmp-replicator-use-alternative-selector=true` and a set of additional labels that you want to use:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  labels:
+    plumber-cd.github.io/argocd-cmp-replicator-use-alternative-selector=true: "true"
+    my-other-label: "value"
+    one-more-label: "another-value"
+```
+
+Additional labels are specified on the Application:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: replicated-secrets
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/foo/bar
+    targetRevision: main
+    path: .
+    plugin:
+      name: argocd-cmp-replicator
+    parameters:
+      - name: alternative-label-selector
+        string: 'my-other-label=value,one-more-label=another-value'
+  destination:
+    name: in-cluster
+    namespace: my-test-namespace
+```
