@@ -1,0 +1,9 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: argocd-cmp-replicator
+spec:
+  generate:
+    command: [/usr/local/bin/argocd-cmp-replicator]
+    args:
+      - secrets
