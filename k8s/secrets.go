@@ -91,6 +91,7 @@ func (c *Client) WriteSecretListManifests(ctx context.Context, namespace string,
 				Annotations: newAnnotations,
 			},
 			Data: secret.Data,
+			Type: secret.Type,
 		}
 		if err := printer.PrintObj(&newSecret, writer); err != nil {
 			return err
