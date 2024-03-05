@@ -175,6 +175,16 @@ func TestGetLabeledSecrets(t *testing.T) {
 			},
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-pull-secret",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabel: "true",
+					},
+				},
+				Type: corev1.SecretTypeDockerConfigJson,
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      "labeled-secret-for-current-namespace",
 					Namespace: "my-test-namespace",
 					Labels: map[string]string{
@@ -289,13 +299,14 @@ func TestGetLabeledSecrets(t *testing.T) {
 		secrets, err := client.GetLabeledSecrets(context.TODO(), "my-test-namespace", "")
 		require.NoError(t, err)
 
-		require.Len(t, secrets.Items, 6)
+		require.Len(t, secrets.Items, 7)
 		secretKeys := make([]string, 0, len(secrets.Items))
 		for _, secret := range secrets.Items {
 			secretKeys = append(secretKeys, fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
 		}
 		require.ElementsMatch(t, []string{
 			"my-test-namespace/labeled-secret",
+			"my-test-namespace/labeled-pull-secret",
 			"my-test-namespace/labeled-secret-for-current-namespace",
 			"my-test-namespace/labeled-secret-for-current-namespace-explicitly",
 			"some-other-namespace/labeled-secret-in-another-namespace-for-any-namespace",
@@ -317,6 +328,17 @@ func TestGetLabeledSecrets(t *testing.T) {
 						"alternative-label":              "alternative-label-value",
 					},
 				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "labeled-pull-secret",
+					Namespace: "my-test-namespace",
+					Labels: map[string]string{
+						types.ReplicatorLabelAlternative: "true",
+						"alternative-label":              "alternative-label-value",
+					},
+				},
+				Type: corev1.SecretTypeDockerConfigJson,
 			},
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -464,13 +486,14 @@ func TestGetLabeledSecrets(t *testing.T) {
 		secrets, err := client.GetLabeledSecrets(context.TODO(), "my-test-namespace", "alternative-label=alternative-label-value")
 		require.NoError(t, err)
 
-		require.Len(t, secrets.Items, 6)
+		require.Len(t, secrets.Items, 7)
 		secretKeys := make([]string, 0, len(secrets.Items))
 		for _, secret := range secrets.Items {
 			secretKeys = append(secretKeys, fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
 		}
 		require.ElementsMatch(t, []string{
 			"my-test-namespace/labeled-secret",
+			"my-test-namespace/labeled-pull-secret",
 			"my-test-namespace/labeled-secret-for-current-namespace",
 			"my-test-namespace/labeled-secret-for-current-namespace-explicitly",
 			"some-other-namespace/labeled-secret-in-another-namespace-for-any-namespace",
