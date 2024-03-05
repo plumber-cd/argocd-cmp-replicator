@@ -98,6 +98,10 @@ spec:
   destination:
     name: in-cluster
     namespace: my-test-namespace
+  syncPolicy:
+    syncOptions:
+    # In privileged projects, you will always want to use this in combination with this plugin to avoid potential conflicts
+    - FailOnSharedResource=true
 ```
 
 ## Usage
@@ -154,6 +158,22 @@ metadata:
     plumber-cd.github.io/argocd-cmp-replicator-allowed-namespaces: "*"
 ```
 
+By default replicated secret name will be `{{ .originalSecret.Name }}-from-{{ .originalSecret.Namespace }}` to avoid any potential naming conflicts with existing secrets. To change that behavior, you can use annotation `plumber-cd.github.io/argocd-cmp-replicator-replicated-name`:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  labels:
+    plumber-cd.github.io/argocd-cmp-replicator: "true"
+  annotations:
+    plumber-cd.github.io/argocd-cmp-replicator-allowed-namespaces: "*"
+    plumber-cd.github.io/argocd-cmp-replicator-replicated-name: default-pull-secret
+```
+
+Note that in privileged projects (that are allowed to sync to multiple namespaces) you will always want to setsync policy `FailOnSharedResource=true`. Otherwise, user in a namespace A could override a secret in a namespace B. In user-projects bound to specific namespaces, this CMP will produce conflicting intent, but ArgoCD will refuse to sync it to a namespace not listed on the project. In future, we may add annotation on the namespace that would establish trust from other namespaces to avoid this conflict altogether.
+
 ### Non-standard label selector
 
 By default, the plugin will look for secrets with the label `plumber-cd.github.io/argocd-cmp-replicator=true`. If you want to use a different label, which may be useful in a multi-tenant clusters, you can label secrets with alternative label `plumber-cd.github.io/argocd-cmp-replicator-use-alternative-selector=true` and a set of additional labels that you want to use:
@@ -190,4 +210,8 @@ spec:
   destination:
     name: in-cluster
     namespace: my-test-namespace
+  syncPolicy:
+    syncOptions:
+    # You will always want to use this in combination with this plugin to avoid potential conflicts
+    - FailOnSharedResource=true
 ```
