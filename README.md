@@ -204,9 +204,9 @@ spec:
     path: .
     plugin:
       name: argocd-cmp-replicator
-    parameters:
-      - name: alternative-label-selector
-        string: 'my-other-label=value,one-more-label=another-value'
+      parameters:
+        - name: alternative-label-selector
+          string: 'my-other-label=value,one-more-label=another-value'
   destination:
     name: in-cluster
     namespace: my-test-namespace
