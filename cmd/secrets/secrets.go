@@ -10,7 +10,7 @@ import (
 	"github.com/plumber-cd/argocd-cmp-replicator/k8s"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 func init() {
@@ -47,12 +47,17 @@ var Cmd = &cobra.Command{
 				slog.Error("Both ARGOCD_APP_PARAMETERS and --alternative-label-selector were set")
 				return fmt.Errorf("Both ARGOCD_APP_PARAMETERS and --alternative-label-selector were set")
 			}
+			slog.Debug("ARGOCD_APP_PARAMETERS", "value", v)
 			params := argocdv1alpha1.ApplicationSourcePluginParameters{}
 			if err := yaml.Unmarshal([]byte(v), &params); err != nil {
 				return err
 			}
 			for _, param := range params {
 				if param.Name == "alternative-label-selector" {
+					if param.String_ == nil {
+						slog.Error("alternative-label-selector is not a string")
+						return fmt.Errorf("alternative-label-selector is not a string")
+					}
 					alternativeLabelSelector = *param.String_
 					break
 				}
