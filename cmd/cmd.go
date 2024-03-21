@@ -64,14 +64,28 @@ func initConfig() {
 
 	handlerOptions := &slog.HandlerOptions{
 		Level:     level,
-		AddSource: level <= slog.LevelDebug,
+		AddSource: level <= -100,
 	}
 	var handler slog.Handler
 	switch format {
 	case "json":
 		handler = slog.NewJSONHandler(os.Stderr, handlerOptions)
 	case "text":
-		handler = slog.NewTextHandler(os.Stderr, handlerOptions)
+		suppress := func(
+			next func([]string, slog.Attr) slog.Attr,
+		) func([]string, slog.Attr) slog.Attr {
+			return func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.TimeKey {
+					return slog.Attr{}
+				}
+				if next == nil {
+					return a
+				}
+				return next(groups, a)
+			}
+		}
+		handlerOptions.ReplaceAttr = suppress(handlerOptions.ReplaceAttr)
+		handler = slog.NewTextHandler(os.Stdout, handlerOptions)
 	default:
 		log.Panicf("unknown log format: %s", format)
 	}
