@@ -71,6 +71,8 @@ func (c *Client) WriteSecretListManifests(ctx context.Context, namespace string,
 		newLabels := secret.Labels
 		if newLabels != nil {
 			delete(newLabels, types.ReplicatorLabel)
+		} else {
+			newLabels = map[string]string{}
 		}
 		newAnnotations := secret.Annotations
 		if newAnnotations == nil {
@@ -78,6 +80,8 @@ func (c *Client) WriteSecretListManifests(ctx context.Context, namespace string,
 		}
 		delete(newAnnotations, types.ReplicatorAnnotationAllowedNamespaces)
 		delete(newAnnotations, types.ReplicatorAnnotationReplicatedName)
+		delete(newAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
+		delete(newAnnotations, "argocd.argoproj.io/tracking-id")
 		newAnnotations[types.ReplicatorAnnotationFromNamespace] = secret.Namespace
 		newSecret := corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
